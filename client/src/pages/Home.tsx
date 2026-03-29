@@ -16,11 +16,7 @@ export default function Home() {
   };
 
   const handleProductClick = (itemId: number, sellerId: number) => {
-    if (!user) {
-      window.location.href = getLoginUrl();
-      return;
-    }
-    setLocation(`/chat?itemId=${itemId}&sellerId=${sellerId}`);
+    setLocation(`/items/${itemId}`);
   };
 
   if (authLoading) {

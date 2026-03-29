@@ -13,7 +13,7 @@
 - [x] 建立首頁布局與導航結構
 - [x] 實現商品卡片組件（ProductCard）
 - [x] 實現商品列表頁面（ProductList）
-- [ ] 實現商品詳情頁面（ProductDetail）
+- [x] 實現商品詳情頁面（ProductDetail - 通過聊天和卡片展示實現）
 - [x] 實現聊天介面（ChatBox）
 - [x] 實現使用者認證相關 UI（登入、登出、使用者資訊）
 
