@@ -28,7 +28,7 @@ export default function Chat() {
   });
 
   // Fetch messages
-  const { data: messages, refetch: refetchMessages } = trpc.messages.getByConversation.useQuery(
+  const { data: messages, refetch: refetchMessages, isLoading: messagesLoading, error: messagesError } = trpc.messages.getByConversation.useQuery(
     { conversationId: conversationId || 0 },
     { enabled: !!conversationId }
   );
@@ -111,7 +111,20 @@ export default function Chat() {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!messages || messages.length === 0 ? (
+        {messagesLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="animate-spin text-primary" size={32} />
+          </div>
+        ) : messagesError ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <p className="text-red-500 mb-4">Failed to load messages</p>
+              <Button onClick={() => refetchMessages()} variant="outline">
+                Retry
+              </Button>
+            </div>
+          </div>
+        ) : !messages || messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
           </div>
@@ -141,6 +154,11 @@ export default function Chat() {
 
       {/* Input Area */}
       <div className="bg-card border-t border-border p-4">
+        {sendMessageMutation.error && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            Failed to send message. Please try again.
+          </div>
+        )}
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <Input
             value={message}
