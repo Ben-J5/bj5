@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, items, conversations, messages } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,116 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Items queries
+export async function getAllItems() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(items);
+}
+
+export async function getItemById(itemId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(items).where(eq(items.id, itemId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Conversations queries
+export async function getOrCreateConversation(itemId: number, buyerId: number, sellerId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  // Use a combination of itemId, buyerId, and sellerId to ensure uniqueness
+  const { and, eq: eqOp } = await import('drizzle-orm');
+  const existing = await db.select().from(conversations)
+    .where(
+      and(
+        eqOp(conversations.itemId, itemId),
+        eqOp(conversations.buyerId, buyerId),
+        eqOp(conversations.sellerId, sellerId)
+      )
+    )
+    .limit(1);
+  
+  if (existing.length > 0) {
+    return existing[0];
+  }
+  
+  // Create new conversation
+  await db.insert(conversations).values({
+    itemId,
+    buyerId,
+    sellerId,
+  });
+  
+  // Fetch the newly created conversation
+  const { and: andOp, eq: eqOp2 } = await import('drizzle-orm');
+  const newConv = await db.select().from(conversations)
+    .where(
+      andOp(
+        eqOp2(conversations.itemId, itemId),
+        eqOp2(conversations.buyerId, buyerId),
+        eqOp2(conversations.sellerId, sellerId)
+      )
+    )
+    .limit(1);
+  
+  return newConv.length > 0 ? newConv[0] : undefined;
+}
+
+export async function getConversationById(conversationId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { or } = await import('drizzle-orm');
+  // Get conversations where user is either buyer or seller
+  return db.select().from(conversations)
+    .where(
+      or(
+        eq(conversations.buyerId, userId),
+        eq(conversations.sellerId, userId)
+      )
+    )
+    .orderBy(conversations.lastMessageAt);
+}
+
+// Messages queries
+export async function getConversationMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { asc } = await import('drizzle-orm');
+  return db.select().from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(asc(messages.createdAt));
+}
+
+export async function createMessage(conversationId: number, senderId: number, content: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  await db.insert(messages).values({
+    conversationId,
+    senderId,
+    content,
+  });
+  
+  // Update conversation's lastMessageAt
+  await db.update(conversations)
+    .set({ lastMessageAt: new Date() })
+    .where(eq(conversations.id, conversationId));
+  
+  return true;
+}

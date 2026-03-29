@@ -1,4 +1,5 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, longtext } from "drizzle-orm/mysql-core";
+import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +26,49 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Items table for second-hand products
+ */
+export const items = mysqlTable("items", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: longtext("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  imageUrl: text("imageUrl"),
+  sellerId: int("sellerId").notNull(),
+  status: mysqlEnum("status", ["available", "sold", "pending"]).default("available").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Item = typeof items.$inferSelect;
+export type InsertItem = typeof items.$inferInsert;
+
+/**
+ * Conversations table for chat between users
+ */
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  itemId: int("itemId").notNull(),
+  buyerId: int("buyerId").notNull(),
+  sellerId: int("sellerId").notNull(),
+  lastMessageAt: timestamp("lastMessageAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+
+/**
+ * Messages table for storing chat messages
+ */
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  senderId: int("senderId").notNull(),
+  content: longtext("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;

@@ -1,10 +1,12 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { getAllItems, getItemById, getOrCreateConversation, getConversationMessages, createMessage, getUserConversations, getConversationById } from "./db";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -17,12 +19,48 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  items: router({
+    list: publicProcedure.query(async () => {
+      return getAllItems();
+    }),
+    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      return getItemById(input.id);
+    }),
+  }),
+
+  conversations: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return getUserConversations(ctx.user.id);
+    }),
+    getOrCreate: protectedProcedure
+      .input(z.object({ itemId: z.number(), sellerId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return getOrCreateConversation(input.itemId, ctx.user.id, input.sellerId);
+      }),
+  }),
+
+  messages: router({
+    getByConversation: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        // Verify user is part of this conversation
+        const conv = await getConversationById(input.conversationId);
+        if (!conv || (conv.buyerId !== ctx.user.id && conv.sellerId !== ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Unauthorized' });
+        }
+        return getConversationMessages(input.conversationId);
+      }),
+    send: protectedProcedure
+      .input(z.object({ conversationId: z.number(), content: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        // Verify user is part of this conversation
+        const conv = await getConversationById(input.conversationId);
+        if (!conv || (conv.buyerId !== ctx.user.id && conv.sellerId !== ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Unauthorized' });
+        }
+        return createMessage(input.conversationId, ctx.user.id, input.content);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
