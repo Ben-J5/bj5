@@ -357,7 +357,7 @@ sudo systemctl restart nginx
 
 ```bash
 # 安裝 Certbot
-sudo apt install -y certbot python3-certbot-nginx
+sudo apt install -y certbot 3-certbot-nginx
 
 # 獲取 SSL 證書
 sudo certbot --nginx -d stitch.example.com
